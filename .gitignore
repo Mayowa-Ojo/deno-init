@@ -1,3 +1,6 @@
+node_modules
+package-lock.json
+
 .DS_Store
 Thumbs.db
 
@@ -5,5 +8,5 @@ Thumbs.db
 dist/**/*
 
 .env
-
+.vscode/
 
