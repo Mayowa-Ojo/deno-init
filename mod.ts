@@ -1,15 +1,12 @@
 // cli tool that generates deno project structure
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { readLines } from "https://deno.land/std@v0.35.0/io/bufio.ts";
+import { exists } from "https://deno.land/std/fs/mod.ts";
 
 // globals 
 const { args, exit } = Deno;
 const { log } = console;
-
-interface Options {
-   boolean?: string;
-   [propName: string]: any;
-}
+const regex = /[\.]ts$/;
 
 const mapQuestionsToIndex = new Map;
 mapQuestionsToIndex.set('1', 'I');
@@ -23,14 +20,17 @@ mapQuestionsToIndex.set('8', 'VIII');
 mapQuestionsToIndex.set('9', 'IX');
 mapQuestionsToIndex.set('10', 'X');
 
+interface Options {
+   boolean?: string[];
+   [propName: string]: any;
+}
 const options: Options = {
-   boolean: 'array of strings to always treat as boolean'
+   boolean: ['array of strings to always treat as boolean']
 }
 
 interface Questions {
    [propName: string]: string
 }
-
 const questions: Questions = {
    I: "New project huh, what's your entry file? <Default: mod.ts>",
    II: "Interesting you chose deno, should I generate import maps? [yes(y) || no(n)]",
@@ -52,11 +52,21 @@ const flags = {
 
 async function prompt (text: string, callback: Function): Promise<void> {
    log(`--> ${text}`);
-   await callback();
+   return await callback();
+}
+
+async function generateFile(filename: string): Promise<void> {
+   // check if file exixts
+   const fileExists: boolean = await exists(`./${filename}`);
+   if(fileExists) {
+      throwError('file already exists, do you want to overwrite?', false);
+      return;
+   }
 }
 
 function ask(question: string): void {
    console.log(`-> ${question}`);
+   return;
 }
 
 // function parse(args, key): string {
@@ -65,6 +75,7 @@ function ask(question: string): void {
 function throwError(message: string, willExit: boolean): void {
    log(`Error: ${message}`);
    willExit? exit(0) : null;
+   return;
 }
 
 async function read(): Promise<void> {
@@ -74,18 +85,27 @@ async function read(): Promise<void> {
    for await(const line of readLines(Deno.stdin)) {
       // console.log(`Your entry: ${line}`);
       // check if user doesn't enter a value
-      if(line == '') {
+      if(line == '' && indexCount !== 1) {
          throwError('input field cannot be blank', false);
       }
-      
+
+      // user wants to exit
+      if(line.toLowerCase() == 'exit') {
+         throwError('exiting cli', true);
+      }
+
       switch(indexCount) {
          case 1:
-            if(line.toLowerCase() == 'mod.ts') {
-               log('file created');
+            if(!Boolean(regex.exec(line))) {
+               throwError('invalid filename: file must have <.ts> extension', false);
+            } else if(line.toLowerCase() == '') {
+               generateFile('mod.ts');
                indexCount++;
                ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             } else {
-               log('invalid input');
+               generateFile(line);
+               indexCount++;
+               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             }
             break;
          case 2:
