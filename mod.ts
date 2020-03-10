@@ -1,7 +1,7 @@
 // cli tool that generates deno project structure
 import { parse } from "https://deno.land/std@v0.35.0/flags/mod.ts";
 import { readLines } from "https://deno.land/std@v0.35.0/io/bufio.ts";
-import { exists } from "https://deno.land/std@v0.35.0/fs/mod.ts";
+import { exists, writeFileStr } from "https://deno.land/std@v0.35.0/fs/mod.ts";
 
 // globals 
 const { args, exit } = Deno;
@@ -58,9 +58,16 @@ async function prompt (text: string, callback: Function): Promise<void> {
 async function generateFile(filename: string): Promise<void> {
    // check if file exixts
    const fileExists: boolean = await exists(`./${filename}`);
+
    if(fileExists) {
       throwError('file already exists, do you want to overwrite?', false);
       return;
+   }
+
+   try {
+      await writeFileStr(filename, 'hello world');
+   } catch(err) {
+      throwError(err.message, true);
    }
 }
 
@@ -73,6 +80,12 @@ function ask(question: string): void {
 //    return args[key];
 // }
 function throwError(message: string, willExit: boolean): void {
+   if(message == 'exiting cli') {
+      log(message);
+      exit(0);
+      return;
+   }
+
    log(`Error: ${message}`);
    willExit? exit(0) : null;
    return;
@@ -98,15 +111,18 @@ async function read(): Promise<void> {
          case 1:
             if(!Boolean(regex.exec(line))) {
                throwError('invalid filename: file must have <.ts> extension', false);
-            } else if(line.toLowerCase() == '') {
+            }
+            
+            if(line.toLowerCase() == '') {
                generateFile('mod.ts');
                indexCount++;
                ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               generateFile(line);
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+               break;
             }
+
+            generateFile(line);
+            indexCount++;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
          case 2:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
