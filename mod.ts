@@ -1,7 +1,7 @@
 // cli tool that generates deno project structure
-import { parse } from "https://deno.land/std/flags/mod.ts";
+import { parse } from "https://deno.land/std@v0.35.0/flags/mod.ts";
 import { readLines } from "https://deno.land/std@v0.35.0/io/bufio.ts";
-import { exists } from "https://deno.land/std/fs/mod.ts";
+import { exists } from "https://deno.land/std@v0.35.0/fs/mod.ts";
 
 // globals 
 const { args, exit } = Deno;
