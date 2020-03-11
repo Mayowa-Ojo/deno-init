@@ -1,16 +1,27 @@
 {
+  "compileOnSave": false,
   "compilerOptions": {
     "allowJs": true,
     "esModuleInterop": true,
-    "lib": ["esnext"],
+    "outDir": "../dist/",
+    "lib": [
+       "esnext",
+       "dom"
+     ],
     "module": "esnext",
     "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "noEmit": true,
     "pretty": true,
     "resolveJsonModule": true,
-    "target": "esnext"
+    "target": "esnext",
+    "baseUrl": "src",
+     "paths": {
+        // "@app-imports/*": ["utils/*"]
+     }
   },
   "include": [
     "./**/*.ts"
-  ]
+  ]   
 }
