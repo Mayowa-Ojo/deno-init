@@ -1,0 +1,8 @@
+{
+   "imports": {
+      "flags/": "https://deno.land/std@v0.35.0/flags/",
+      "fs/": "https://deno.land/std@v0.35.0/fs/",
+      "io/": "https://deno.land/std@v0.35.0/io/",
+      "log/": "https://deno.land/std@v0.35.0/log/"
+   }
+}
