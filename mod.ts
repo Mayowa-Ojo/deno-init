@@ -57,8 +57,7 @@ async function prompt (text: string, callback: Function): Promise<void> {
 
 async function generateFile(filename: string, content: string, overwrite?: boolean): Promise<boolean> {
    // check if file exixts
-   const fileExists: boolean = await exists(`./${filename}`);
-
+   
    if(overwrite) {
       try {
          await Deno.remove(`./${filename}`);
@@ -66,6 +65,8 @@ async function generateFile(filename: string, content: string, overwrite?: boole
          throwError(err.message, true);
       }
    }
+   
+   const fileExists: boolean = await exists(`./${filename}`);
 
    if(fileExists) {
       return fileExists;
@@ -130,7 +131,7 @@ async function read(): Promise<void> {
                ask('[WARNING]: file already exixts, do you want to overwrite?');
                for await(const subLine of readLines(Deno.stdin)) {
                   if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
-                     generateFile('mod.ts', 'new content <smile>', true);
+                     generateFile(filename, 'new content <smile>', true);
                      break;
                   }
 
