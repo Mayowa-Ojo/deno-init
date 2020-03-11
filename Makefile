@@ -10,4 +10,4 @@ wn = --allow-write --allow-net
 rwn = --allow-read --allow-write --allow-net
 
 init:
-	deno ${$(arg)} mod.ts
+	deno run --importmap=import_map.json ${$(arg)} mod.ts
