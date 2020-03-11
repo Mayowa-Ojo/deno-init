@@ -1,7 +1,6 @@
-// cli tool that generates deno project structure
-import { parse } from "https://deno.land/std@v0.35.0/flags/mod.ts";
-import { readLines } from "https://deno.land/std@v0.35.0/io/bufio.ts";
-import { exists, writeFileStr } from "https://deno.land/std@v0.35.0/fs/mod.ts";
+// >cli tool for bootstrapping deno project<
+import { parse, exists, readLines, writeFileStr } from "./deps.ts";
+import { content_makefile } from "./utils/file_content.ts";
 
 // globals 
 const { args, exit } = Deno;
@@ -33,15 +32,16 @@ interface Questions {
 }
 const questions: Questions = {
    I: "New project huh, what's your entry file? <Default: mod.ts>",
-   II: "Interesting you chose deno, should I generate import maps? [yes(y) || no(n)]",
-   III: "How do you feel about a Makefile? [yes(y) || no(n)]",
-   IV: "How about a test folder in the root directory? [yes(y) || no(n)]",
-   V: "Mind if I add a .gitignore? [yes(y) || no(n)]",
-   VI: "You need a .env file don't you? [yes(y) || no(n)]",
-   VII: "I presume you want a README.md [yes(y) || no(n)]",
-   VIII: "LICENCE? If yes, what type? [yes(y) [ISC, MIT] || no(n)]",
-   IX: "I suggest you use type definitions(types.d.ts) [yes(y) || no(n)]",
-   X: "Your project is structured. Happy building",
+   II: "Interesting you chose deno, should I generate a Makefile [yes(y) || no(n)]",
+   III: "Would you like to use import maps? [yes(y) || no(n)]",
+   IV: "How do you feel about a tsconfig? [yes(y) || no(n)]",
+   V: "How about a test folder in the root directory? [yes(y) || no(n)]",
+   VI: "Mind if I add a .gitignore? [yes(y) || no(n)]",
+   VII: "You need a .env file don't you? [yes(y) || no(n)]",
+   VIII: "I presume you want a README.md [yes(y) || no(n)]",
+   IX: "LICENCE? If yes, what type? [yes(y) [ISC, MIT] || no(n)]",
+   X: "I suggest you use type definitions(types.d.ts) [yes(y) || no(n)]",
+   XI: "Your project is structured. Happy building",
 }
 
 const flags = {
@@ -55,24 +55,33 @@ async function prompt (text: string, callback: Function): Promise<void> {
    return await callback();
 }
 
-async function generateFile(filename: string): Promise<void> {
+async function generateFile(filename: string, content: string, overwrite?: boolean): Promise<boolean> {
    // check if file exixts
    const fileExists: boolean = await exists(`./${filename}`);
 
+   if(overwrite) {
+      try {
+         await Deno.remove(`./${filename}`);
+      } catch (err) {
+         throwError(err.message, true);
+      }
+   }
+
    if(fileExists) {
-      throwError('file already exists, do you want to overwrite?', false);
-      return;
+      return fileExists;
    }
 
    try {
-      await writeFileStr(filename, 'hello world');
+      await writeFileStr(filename, content);
+      return fileExists;
    } catch(err) {
       throwError(err.message, true);
+      return false;
    }
 }
 
 function ask(question: string): void {
-   console.log(`-> ${question}`);
+   console.log(`-> [INFO]: ${question}`);
    return;
 }
 
@@ -81,12 +90,12 @@ function ask(question: string): void {
 // }
 function throwError(message: string, willExit: boolean): void {
    if(message == 'exiting cli') {
-      log(message);
+      log(`[INFO]: ${message}`);
       exit(0);
       return;
    }
 
-   log(`Error: ${message}`);
+   log(`[Error]: ${message}`);
    willExit? exit(0) : null;
    return;
 }
@@ -109,29 +118,40 @@ async function read(): Promise<void> {
 
       switch(indexCount) {
          case 1:
-            if(!Boolean(regex.exec(line))) {
+            const filename: string = line == '' ? 'mod.ts' : line;
+
+            if(!Boolean(regex.exec(filename))) {
                throwError('invalid filename: file must have <.ts> extension', false);
             }
-            
-            if(line.toLowerCase() == '') {
-               generateFile('mod.ts');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-               break;
+
+            const exists = await generateFile(filename, '');
+
+            if(exists) {
+               ask('[WARNING]: file already exixts, do you want to overwrite?');
+               for await(const subLine of readLines(Deno.stdin)) {
+                  if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
+                     generateFile('mod.ts', 'new content <smile>', true);
+                     break;
+                  }
+
+                  if(subLine.toLowerCase() == 'no' || subLine.toLowerCase() == 'n') {
+                     break;
+                  }
+               }
             }
 
-            generateFile(line);
             indexCount++;
             ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
          case 2:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
+               generateFile('Makefile', content_makefile);
                indexCount++;
                ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+               break;
             }
+ 
+            log('invalid input');
             break;
          case 3:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
