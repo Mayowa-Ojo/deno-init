@@ -1,5 +1,5 @@
 // >cli tool for bootstrapping deno project<
-import { parse, exists, readLines, writeFileStr } from "./deps.ts";
+import { parse, exists, readLines, writeFileStr, c } from "./deps.ts";
 import { content_makefile } from "./utils/file_content.ts";
 
 // globals 
@@ -65,7 +65,7 @@ async function generateFile(filename: string, content: string, overwrite?: boole
          throwError(err.message, true);
       }
    }
-   
+
    const fileExists: boolean = await exists(`./${filename}`);
 
    if(fileExists) {
@@ -82,7 +82,7 @@ async function generateFile(filename: string, content: string, overwrite?: boole
 }
 
 function ask(question: string): void {
-   console.log(`-> [INFO]: ${question}`);
+   console.log(`${c.green("-> [INFO]")}: ${question}`);
    return;
 }
 
@@ -91,12 +91,12 @@ function ask(question: string): void {
 // }
 function throwError(message: string, willExit: boolean): void {
    if(message == 'exiting cli') {
-      log(`[INFO]: ${message}`);
+      log(`${c.green("[INFO]")}: ${message}`);
       exit(0);
       return;
    }
 
-   log(`[Error]: ${message}`);
+   log(`${c.red("[Error]")}: ${message}`);
    willExit? exit(0) : null;
    return;
 }
