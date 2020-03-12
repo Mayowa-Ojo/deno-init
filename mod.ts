@@ -101,9 +101,40 @@ function throwError(message: string, willExit: boolean): void {
    return;
 }
 
+async function handleFileExists(exists: boolean, filename: string): Promise<void> {
+
+   if(exists) {
+      ask('[WARNING]: file already exixts, do you want to overwrite?');
+      for await(const subLine of readLines(Deno.stdin)) {
+         if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
+            generateFile(filename, '', true);
+            break;
+         }
+
+         if(subLine.toLowerCase() == 'no' || subLine.toLowerCase() == 'n') {
+            break;
+         }
+      }
+   }
+
+}
+
+async function resolveResponse(res: string, filename: string, content: string, index: number): Promise<[number, boolean]> {
+   if(res.toLowerCase() == 'yes' || res.toLowerCase() == 'y') {
+
+      const exists = await generateFile(filename, content_makefile);
+      await handleFileExists(exists, filename);
+
+      index++;
+      return [index, true];
+   }
+   return [index, false];
+}
+
 async function read(): Promise<void> {
    // const holdQuestion: string[] = [];
    let indexCount = 1;
+   let filename: string;
 
    for await(const line of readLines(Deno.stdin)) {
       // console.log(`Your entry: ${line}`);
@@ -119,7 +150,7 @@ async function read(): Promise<void> {
 
       switch(indexCount) {
          case 1:
-            let filename: string = line == '' ? 'mod.ts' : line;
+            filename = line == '' ? 'mod.ts' : line;
             let canProceed: boolean = false;
 
             // run an initial check for invalid filename
@@ -145,33 +176,27 @@ async function read(): Promise<void> {
 
             const exists = await generateFile(filename, '');
 
-            if(exists) {
-               ask('[WARNING]: file already exixts, do you want to overwrite?');
-               for await(const subLine of readLines(Deno.stdin)) {
-                  if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
-                     generateFile(filename, 'new content <smile>', true);
-                     break;
-                  }
-
-                  if(subLine.toLowerCase() == 'no' || subLine.toLowerCase() == 'n') {
-                     break;
-                  }
-               }
-            }
-
+            await handleFileExists(exists, filename);
             indexCount++;
             ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 2:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               generateFile('Makefile', content_makefile);
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-               break;
-            }
- 
-            log('invalid input');
+            filename = "Makefile";
+
+            // if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
+
+            //    const exists = await generateFile(filename, content_makefile);
+            //    await handleFileExists(exists, filename);
+
+            //    indexCount++;
+            //    ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            //    break;
+            // }
+            const [index, proceed] = await resolveResponse(line, filename, content_makefile, indexCount);
+            indexCount = index;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            // log('invalid input');
             break;
 
          case 3:
