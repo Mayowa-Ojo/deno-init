@@ -51,7 +51,7 @@ const flags = {
 }
 
 async function prompt (text: string, callback: Function): Promise<void> {
-   log(`--> ${text}`);
+   log(`${c.cyan("-->")} ${text}`);
    return await callback();
 }
 
