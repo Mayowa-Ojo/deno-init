@@ -119,10 +119,28 @@ async function read(): Promise<void> {
 
       switch(indexCount) {
          case 1:
-            const filename: string = line == '' ? 'mod.ts' : line;
+            let filename: string = line == '' ? 'mod.ts' : line;
+            let canProceed: boolean = false;
 
+            // run an initial check for invalid filename
             if(!Boolean(regex.exec(filename))) {
                throwError('invalid filename: file must have <.ts> extension', false);
+
+               // if input is invalid, enter another readable stream 
+               while (!canProceed) {
+                  
+                  for await(const subLine of readLines(Deno.stdin)) {
+                     
+                     if(!Boolean(regex.exec(subLine))) {
+                        throwError('invalid filename: file must have <.ts> extension', false);
+                     } else {
+                        canProceed = true;
+                        filename = subLine;
+                        break;
+                     }
+                  }
+               }
+
             }
 
             const exists = await generateFile(filename, '');
@@ -144,6 +162,7 @@ async function read(): Promise<void> {
             indexCount++;
             ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
+
          case 2:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                generateFile('Makefile', content_makefile);
@@ -154,6 +173,7 @@ async function read(): Promise<void> {
  
             log('invalid input');
             break;
+
          case 3:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -163,6 +183,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 4:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -172,6 +193,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 5:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -181,6 +203,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 6:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -190,6 +213,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 7:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -199,6 +223,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 8:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -208,6 +233,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          case 9:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
                log('file created');
@@ -231,6 +257,7 @@ async function read(): Promise<void> {
                log('invalid input');
             }
             break;
+
          default:
             exit(0);
       }
