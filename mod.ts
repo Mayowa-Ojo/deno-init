@@ -119,22 +119,49 @@ async function handleFileExists(exists: boolean, filename: string): Promise<void
 
 }
 
-async function resolveResponse(res: string, filename: string, content: string, index: number): Promise<[number, boolean]> {
+async function resolveResponse(res: string, filename: string, content: string): Promise<boolean> {
    if(res.toLowerCase() == 'yes' || res.toLowerCase() == 'y') {
 
-      const exists = await generateFile(filename, content_makefile);
+      const exists = await generateFile(filename, content);
       await handleFileExists(exists, filename);
 
-      index++;
-      return [index, true];
+      return true;
    }
-   return [index, false];
+
+   if(res.toLowerCase() == 'no' || res.toLowerCase() == 'n') {
+      return true;
+   }
+
+   throwError('Invalid input', false);
+   return false;
+}
+
+async function forceValidInput(condition: Function, errMsg: string, canProceed: boolean): Promise<boolean> {
+   while (!canProceed) {
+                  
+      for await(const subLine of readLines(Deno.stdin)) {
+         
+         if(!condition(subLine)) {
+            throwError(errMsg, false);
+         } else {
+            break;
+         }
+      }
+      break;
+   }
+
+   return true;
 }
 
 async function read(): Promise<void> {
    // const holdQuestion: string[] = [];
    let indexCount = 1;
    let filename: string;
+   let resolved: boolean;
+   let canProceed: boolean = false;
+
+   const validInputs = ['yes', 'y', 'no', 'n'];
+   const isValidInput = (input: string) => validInputs.includes(input.toLowerCase()) ? true : false;
 
    for await(const line of readLines(Deno.stdin)) {
       // console.log(`Your entry: ${line}`);
@@ -151,7 +178,6 @@ async function read(): Promise<void> {
       switch(indexCount) {
          case 1:
             filename = line == '' ? 'mod.ts' : line;
-            let canProceed: boolean = false;
 
             // run an initial check for invalid filename
             if(!Boolean(regex.exec(filename))) {
@@ -159,7 +185,7 @@ async function read(): Promise<void> {
 
                // if input is invalid, enter another readable stream 
                while (!canProceed) {
-                  
+
                   for await(const subLine of readLines(Deno.stdin)) {
                      
                      if(!Boolean(regex.exec(subLine))) {
@@ -178,36 +204,44 @@ async function read(): Promise<void> {
 
             await handleFileExists(exists, filename);
             indexCount++;
+            canProceed = false;
             ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 2:
             filename = "Makefile";
 
-            // if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
+            resolved = await resolveResponse(line, filename, content_makefile);
 
-            //    const exists = await generateFile(filename, content_makefile);
-            //    await handleFileExists(exists, filename);
+            if(!resolved) {
+               const validated = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
-            //    indexCount++;
-            //    ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            //    break;
-            // }
-            const [index, proceed] = await resolveResponse(line, filename, content_makefile, indexCount);
-            indexCount = index;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            // log('invalid input');
-            break;
+               if(validated) {
+                  console.log('file created');
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
+            }
 
          case 3:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = "import_map.json";
+
+            resolved = await resolveResponse(line, filename, content_makefile);
+
+            if(!resolved) {
+               const validated = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  console.log('file created');
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
-            break;
 
          case 4:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
