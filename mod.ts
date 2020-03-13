@@ -1,6 +1,6 @@
 // >cli tool for bootstrapping deno project<
 import { parse, exists, readLines, writeFileStr, c } from "./deps.ts";
-import { content_makefile } from "./utils/file_content.ts";
+import { content_makefile, content_importmap } from "./utils/file_content.ts";
 
 // globals 
 const { args, exit } = Deno;
@@ -51,7 +51,7 @@ const flags = {
 }
 
 async function prompt (text: string, callback: Function): Promise<void> {
-   log(`${c.cyan("-->")} ${text}`);
+   log(`${c.cyan(">")} ${text}`);
    return await callback();
 }
 
@@ -62,7 +62,7 @@ async function generateFile(filename: string, content: string, overwrite?: boole
       try {
          await Deno.remove(`./${filename}`);
       } catch (err) {
-         throwError(err.message, true);
+         throwError(err.message, true, 'ERROR');
       }
    }
 
@@ -76,27 +76,31 @@ async function generateFile(filename: string, content: string, overwrite?: boole
       await writeFileStr(filename, content);
       return fileExists;
    } catch(err) {
-      throwError(err.message, true);
+      throwError(err.message, true, 'ERROR');
       return false;
    }
 }
 
 function ask(question: string): void {
-   console.log(`${c.green("-> [INFO]")}: ${question}`);
+   console.log(`${c.green("<INFO>")}: ${question}`);
    return;
 }
 
 // function parse(args, key): string {
 //    return args[key];
 // }
-function throwError(message: string, willExit: boolean): void {
+function throwError(message: string, willExit: boolean, errType?: string): void {
+   if(!errType) {
+      errType = 'INFO';
+   }
+   
    if(message == 'exiting cli') {
-      log(`${c.green("[INFO]")}: ${message}`);
+      log(`${c.green(errType)}: ${message}`);
       exit(0);
       return;
    }
 
-   log(`${c.red("[Error]")}: ${message}`);
+   log(`${c.red(errType)}: ${message}`);
    willExit? exit(0) : null;
    return;
 }
@@ -104,7 +108,7 @@ function throwError(message: string, willExit: boolean): void {
 async function handleFileExists(exists: boolean, filename: string): Promise<void> {
 
    if(exists) {
-      ask('[WARNING]: file already exixts, do you want to overwrite?');
+      throwError('file already exixts, do you want to overwrite?', false, 'WARNING');
       for await(const subLine of readLines(Deno.stdin)) {
          if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
             generateFile(filename, '', true);
@@ -132,7 +136,7 @@ async function resolveResponse(res: string, filename: string, content: string): 
       return true;
    }
 
-   throwError('Invalid input', false);
+   throwError('Invalid input', false, 'ERROR');
    return false;
 }
 
@@ -142,7 +146,7 @@ async function forceValidInput(condition: Function, errMsg: string, canProceed: 
       for await(const subLine of readLines(Deno.stdin)) {
          
          if(!condition(subLine)) {
-            throwError(errMsg, false);
+            throwError(errMsg, false, 'ERROR');
          } else {
             break;
          }
@@ -167,12 +171,12 @@ async function read(): Promise<void> {
       // console.log(`Your entry: ${line}`);
       // check if user doesn't enter a value
       if(line == '' && indexCount !== 1) {
-         throwError('input field cannot be blank', false);
+         throwError('input field cannot be blank', false, 'ERROR');
       }
 
       // user wants to exit
       if(line.toLowerCase() == 'exit') {
-         throwError('exiting cli', true);
+         throwError('exiting cli', true, 'INFO');
       }
 
       switch(indexCount) {
@@ -181,15 +185,15 @@ async function read(): Promise<void> {
 
             // run an initial check for invalid filename
             if(!Boolean(regex.exec(filename))) {
-               throwError('invalid filename: file must have <.ts> extension', false);
+               throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
 
                // if input is invalid, enter another readable stream 
                while (!canProceed) {
 
                   for await(const subLine of readLines(Deno.stdin)) {
-                     
+
                      if(!Boolean(regex.exec(subLine))) {
-                        throwError('invalid filename: file must have <.ts> extension', false);
+                        throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
                      } else {
                         canProceed = true;
                         filename = subLine;
@@ -225,11 +229,16 @@ async function read(): Promise<void> {
                }
             }
 
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            break;
+
          case 3:
 
-            filename = "import_map.json";
+            filename = "import_maps.json";
 
-            resolved = await resolveResponse(line, filename, content_makefile);
+            resolved = await resolveResponse(line, filename, content_importmap);
 
             if(!resolved) {
                const validated = await forceValidInput(isValidInput, 'invalid input', canProceed);
@@ -242,6 +251,11 @@ async function read(): Promise<void> {
                   break;
                }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            break;
 
          case 4:
             if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
