@@ -10,3 +10,5 @@ dist/**/*
 .env
 .vscode/
 
+file.ts
+test.ts
