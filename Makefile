@@ -3,6 +3,7 @@
 # deno flags
 r = --allow-read
 n = --allow-net
+w = --allow-write
 e = --allow-env
 rw = --allow-read --allow-write
 rn = --allow-read --allow-net
