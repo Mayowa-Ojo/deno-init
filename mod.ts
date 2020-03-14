@@ -1,24 +1,12 @@
 // >cli tool for bootstrapping deno project<
-import { parse, exists, readLines, writeFileStr, ensureDir, c } from "./deps.ts";
+import { parse, readLines } from "./deps.ts";
 import * as content from "./utils/file_content.ts";
+import { mapQuestionsToIndex, questions, questionsMap } from "./utils/questions.ts";
+import * as func from "./utils/functions.ts";
 
 // globals 
 const { args, exit } = Deno;
-const { log } = console;
 const regex = /[\.]ts$/;
-
-const mapQuestionsToIndex = new Map;
-mapQuestionsToIndex.set('1', 'I');
-mapQuestionsToIndex.set('2', 'II');
-mapQuestionsToIndex.set('3', 'III');
-mapQuestionsToIndex.set('4', 'IV');
-mapQuestionsToIndex.set('5', 'V');
-mapQuestionsToIndex.set('6', 'VI');
-mapQuestionsToIndex.set('7', 'VII');
-mapQuestionsToIndex.set('8', 'VIII');
-mapQuestionsToIndex.set('9', 'IX');
-mapQuestionsToIndex.set('10', 'X');
-mapQuestionsToIndex.set('11', 'XI');
 
 interface Options {
    boolean?: string[];
@@ -28,155 +16,16 @@ const options: Options = {
    boolean: ['array of strings to always treat as boolean']
 }
 
-interface Questions {
-   [propName: string]: string
-}
-const questions: Questions = {
-   I: "New project huh, what's your entry file? <Default: mod.ts>",
-   II: "Interesting you chose deno, should I generate a Makefile [yes(y) || no(n)]",
-   III: "Would you like to use import maps? [yes(y) || no(n)]",
-   IV: "How do you feel about a tsconfig? [yes(y) || no(n)]",
-   V: "How about a test folder in the root directory? [yes(y) || no(n)]",
-   VI: "Mind if I add a .gitignore? [yes(y) || no(n)]",
-   VII: "You need a .env file don't you? [yes(y) || no(n)]",
-   VIII: "I presume you want a README.md [yes(y) || no(n)]",
-   IX: "LICENCE? If yes, what type? [yes(y) [ISC, MIT] || no(n)]",
-   X: "I suggest you use type definitions(types.d.ts) [yes(y) || no(n)]",
-   XI: "Your project is structured. Happy building",
-}
-
 const flags = {
    "--y || -base": "set up basic project structure",
    "--h || -help": "list cli usage",
    "--u || -update": "upgrade to latest version"
 }
 
-async function prompt (text: string, callback: Function): Promise<void> {
-   log(`${c.cyan(">")} ${text}`);
-   return await callback();
-}
-
-async function generateFile(name: string, content: string, overwrite?: boolean, isfolder?: boolean): Promise<boolean> {
-   // check if file exixts
-   
-   if(overwrite) {
-      try {
-         await Deno.remove(`./${name}`);
-      } catch (err) {
-         throwError(err.message, true, 'ERROR');
-      }
-   }
-
-   const fileExists: boolean = isfolder ? false : await exists(`./${name}`);
-
-   if(fileExists) {
-      return fileExists;
-   }
-
-   try {
-      if(isfolder) {
-         console.log('creating foler...')
-         await ensureDir(`./${name}`);
-         return false;
-      }
-
-      await writeFileStr(name, content);
-      return fileExists;
-   } catch(err) {
-      throwError(err.message, true, 'ERROR');
-      return false;
-   }
-}
-
-function ask(question: string): void {
-   console.log(`${c.green("<INFO>")}: ${question}`);
-   return;
-}
-
-// function parse(args, key): string {
-//    return args[key];
-// }
-function throwError(message: string, willExit: boolean, errType?: string): void {
-   if(!errType) {
-      errType = 'INFO';
-   }
-   
-   if(message == 'exiting cli') {
-      log(`${c.green(`<${errType}>`)}: ${message}`);
-      exit(0);
-      return;
-   }
-
-   log(`${c.red(`<${errType}>`)}: ${message}`);
-   willExit? exit(0) : null;
-   return;
-}
-
-async function handleFileExists(exists: boolean, filename: string, isfolder?: boolean): Promise<void> {
-
-   if(exists) {
-      throwError('file already exists, do you want to overwrite?', false, 'WARNING');
-      for await(const subLine of readLines(Deno.stdin)) {
-         if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
-            generateFile(filename, '', true, isfolder ? true : false);
-            break;
-         }
-
-         if(subLine.toLowerCase() == 'no' || subLine.toLowerCase() == 'n') {
-            break;
-         }
-
-         // TODO: force valid input if input is not valid
-      }
-   }
-
-}
-
-async function resolveResponse(res: string, filename: string, content: string, isfolder?: boolean): Promise<boolean> {
-   if(res.toLowerCase() == 'yes' || res.toLowerCase() == 'y') {
-
-      const exists = await generateFile(filename, content, false, isfolder ? true : false);
-      await handleFileExists(exists, filename, isfolder ? true : false);
-
-      return true;
-   }
-
-   if(res.toLowerCase() == 'no' || res.toLowerCase() == 'n') {
-      return true;
-   }
-
-   throwError('Invalid input', false, 'ERROR');
-   return false;
-}
-
-async function forceValidInput(condition: Function, errMsg: string, canProceed: boolean): Promise<[boolean, string]> {
-   let validInput: string = '';
-
-   while (!canProceed) {
-
-      for await(const subLine of readLines(Deno.stdin)) {
-
-         if(!condition(subLine)) {
-            throwError(errMsg, false, 'ERROR');
-         } else {
-            validInput = subLine;
-            break;
-         }
-      }
-      break;
-   }
-
-   return [true, validInput];
-}
-
-function willTerminate(currIndex: number): void {
-   if(currIndex == mapQuestionsToIndex.size) {
-      exit(0);
-   }
-}
-
+/**
+ * starts the readable stream
+ */
 async function read(): Promise<void> {
-   // const holdQuestion: string[] = [];
    let indexCount = 1;
    let filename: string;
    let resolved: boolean;
@@ -186,15 +35,14 @@ async function read(): Promise<void> {
    const isValidInput = (input: string) => validInputs.includes(input.toLowerCase()) ? true : false;
 
    for await(const line of readLines(Deno.stdin)) {
-      // console.log(`Your entry: ${line}`);
       // check if user doesn't enter a value
       if(line == '' && indexCount !== 1) {
-         throwError('input field cannot be blank', false, 'ERROR');
+         func.throwError('input field cannot be blank', false, 'ERROR');
       }
 
       // user wants to exit
       if(line.toLowerCase() == 'exit') {
-         throwError('exiting cli', true, 'INFO');
+         func.throwError('exiting cli', true, 'INFO');
       }
 
       switch(indexCount) {
@@ -203,7 +51,7 @@ async function read(): Promise<void> {
 
             // run an initial check for invalid filename
             if(!Boolean(regex.exec(filename))) {
-               throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
+               func.throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
 
                // if input is invalid, enter another readable stream 
                while (!canProceed) {
@@ -211,7 +59,7 @@ async function read(): Promise<void> {
                   for await(const subLine of readLines(Deno.stdin)) {
 
                      if(!Boolean(regex.exec(subLine))) {
-                        throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
+                        func.throwError('invalid filename: file must have <.ts> extension', false, 'ERROR');
                      } else {
                         canProceed = true;
                         filename = subLine;
@@ -222,220 +70,220 @@ async function read(): Promise<void> {
 
             }
 
-            const exists = await generateFile(filename, '');
+            const exists = await func.generateFile(filename, '');
 
-            await handleFileExists(exists, filename);
+            await func.handleFileExists(exists, filename);
             indexCount++;
             canProceed = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 2:
             filename = "Makefile";
 
-            resolved = await resolveResponse(line, filename, content.content_makefile);
+            resolved = await func.resolveResponse(line, filename, content.content_makefile);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_makefile);
+                  await func.resolveResponse(input, filename, content.content_makefile);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 3:
 
             filename = "import_map.json";
 
-            resolved = await resolveResponse(line, filename, content.content_importmap);
+            resolved = await func.resolveResponse(line, filename, content.content_importmap);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_importmap);
+                  await func.resolveResponse(input, filename, content.content_importmap);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 4:
 
             filename = "tsconfig.json";
 
-            resolved = await resolveResponse(line, filename, content.content_tsconfig);
+            resolved = await func.resolveResponse(line, filename, content.content_tsconfig);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_tsconfig);
+                  await func.resolveResponse(input, filename, content.content_tsconfig);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 5:
 
             filename = "tests";
-            resolved = await resolveResponse(line, filename, '', true);
+            resolved = await func.resolveResponse(line, filename, '', true);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, '', true);
+                  await func.resolveResponse(input, filename, '', true);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 6:
 
             filename = ".gitignore";
 
-            resolved = await resolveResponse(line, filename, content.content_gitignore);
+            resolved = await func.resolveResponse(line, filename, content.content_gitignore);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_gitignore);
+                  await func.resolveResponse(input, filename, content.content_gitignore);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 7:
 
             filename = ".env";
 
-            resolved = await resolveResponse(line, filename, content.content_dotenv);
+            resolved = await func.resolveResponse(line, filename, content.content_dotenv);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_dotenv);
+                  await func.resolveResponse(input, filename, content.content_dotenv);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 8:
 
             filename = "README.md";
 
-            resolved = await resolveResponse(line, filename, content.content_readme);
+            resolved = await func.resolveResponse(line, filename, content.content_readme);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_readme);
+                  await func.resolveResponse(input, filename, content.content_readme);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 9:
 
             filename = "LICENCE";
 
-            resolved = await resolveResponse(line, filename, content.content_licence);
+            resolved = await func.resolveResponse(line, filename, content.content_licence);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_licence);
+                  await func.resolveResponse(input, filename, content.content_licence);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
             break;
 
          case 10:
 
             filename = "types.d.ts";
 
-            resolved = await resolveResponse(line, filename, content.content_types);
+            resolved = await func.resolveResponse(line, filename, content.content_types);
 
             if(!resolved) {
-               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await func.forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content.content_types);
+                  await func.resolveResponse(input, filename, content.content_types);
                   indexCount++
                   resolved = false;
-                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
                   break;
                }
             }
 
             indexCount++
             resolved = false;
-            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            func.ask(mapQuestionsToIndex(questionsMap, questions, indexCount));
 
             // check termination condition
-            willTerminate(indexCount);
+            func.willTerminate(indexCount, questionsMap);
             break;
 
          default:
@@ -444,8 +292,8 @@ async function read(): Promise<void> {
    }
 }
 
-(async function main(): Promise<any> {
-   prompt(questions.I, async () => {
+(async function main(): Promise<void> {
+   func.prompt(questions.I, async () => {
       await read();
    });
 
