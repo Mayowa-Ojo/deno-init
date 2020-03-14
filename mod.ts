@@ -1,6 +1,6 @@
 // >cli tool for bootstrapping deno project<
-import { parse, exists, readLines, writeFileStr, c } from "./deps.ts";
-import { content_makefile, content_importmap } from "./utils/file_content.ts";
+import { parse, exists, readLines, writeFileStr, ensureDir, c } from "./deps.ts";
+import { content_makefile, content_importmap, content_tsconfig } from "./utils/file_content.ts";
 
 // globals 
 const { args, exit } = Deno;
@@ -55,25 +55,30 @@ async function prompt (text: string, callback: Function): Promise<void> {
    return await callback();
 }
 
-async function generateFile(filename: string, content: string, overwrite?: boolean): Promise<boolean> {
+async function generateFile(name: string, content: string, overwrite?: boolean, isfolder?: boolean): Promise<boolean> {
    // check if file exixts
    
-   if(overwrite) {
+   if(overwrite && !isfolder) {
       try {
-         await Deno.remove(`./${filename}`);
+         await Deno.remove(`./${name}`);
       } catch (err) {
          throwError(err.message, true, 'ERROR');
       }
    }
 
-   const fileExists: boolean = await exists(`./${filename}`);
+   const fileExists: boolean = await exists(`./${name}`);
 
    if(fileExists) {
       return fileExists;
    }
 
    try {
-      await writeFileStr(filename, content);
+      if(isfolder) {
+         await ensureDir(`./${name}`);
+         return true;
+      }
+
+      await writeFileStr(name, content);
       return fileExists;
    } catch(err) {
       throwError(err.message, true, 'ERROR');
@@ -95,39 +100,41 @@ function throwError(message: string, willExit: boolean, errType?: string): void 
    }
    
    if(message == 'exiting cli') {
-      log(`${c.green(errType)}: ${message}`);
+      log(`${c.green(`<${errType}>`)}: ${message}`);
       exit(0);
       return;
    }
 
-   log(`${c.red(errType)}: ${message}`);
+   log(`${c.red(`<${errType}>`)}: ${message}`);
    willExit? exit(0) : null;
    return;
 }
 
-async function handleFileExists(exists: boolean, filename: string): Promise<void> {
+async function handleFileExists(exists: boolean, filename: string, isfolder?: boolean): Promise<void> {
 
    if(exists) {
       throwError('file already exixts, do you want to overwrite?', false, 'WARNING');
       for await(const subLine of readLines(Deno.stdin)) {
          if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
-            generateFile(filename, '', true);
+            generateFile(filename, '', true, isfolder ? true : false);
             break;
          }
 
          if(subLine.toLowerCase() == 'no' || subLine.toLowerCase() == 'n') {
             break;
          }
+
+         // TODO: force valid input if input is not valid
       }
    }
 
 }
 
-async function resolveResponse(res: string, filename: string, content: string): Promise<boolean> {
+async function resolveResponse(res: string, filename: string, content: string, isfolder?: boolean): Promise<boolean> {
    if(res.toLowerCase() == 'yes' || res.toLowerCase() == 'y') {
 
       const exists = await generateFile(filename, content);
-      await handleFileExists(exists, filename);
+      await handleFileExists(exists, filename, isfolder ? true : false);
 
       return true;
    }
@@ -140,21 +147,24 @@ async function resolveResponse(res: string, filename: string, content: string): 
    return false;
 }
 
-async function forceValidInput(condition: Function, errMsg: string, canProceed: boolean): Promise<boolean> {
+async function forceValidInput(condition: Function, errMsg: string, canProceed: boolean): Promise<[boolean, string]> {
+   let validInput: string = '';
+
    while (!canProceed) {
-                  
+
       for await(const subLine of readLines(Deno.stdin)) {
-         
+
          if(!condition(subLine)) {
             throwError(errMsg, false, 'ERROR');
          } else {
+            validInput = subLine;
             break;
          }
       }
       break;
    }
 
-   return true;
+   return [true, validInput];
 }
 
 async function read(): Promise<void> {
@@ -218,10 +228,10 @@ async function read(): Promise<void> {
             resolved = await resolveResponse(line, filename, content_makefile);
 
             if(!resolved) {
-               const validated = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  console.log('file created');
+                  await resolveResponse(input, filename, '');
                   indexCount++
                   resolved = false;
                   ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
@@ -241,10 +251,10 @@ async function read(): Promise<void> {
             resolved = await resolveResponse(line, filename, content_importmap);
 
             if(!resolved) {
-               const validated = await forceValidInput(isValidInput, 'invalid input', canProceed);
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  console.log('file created');
+                  await resolveResponse(input, filename, content_importmap);
                   indexCount++
                   resolved = false;
                   ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
@@ -258,23 +268,48 @@ async function read(): Promise<void> {
             break;
 
          case 4:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = "tsconfig.json";
+
+            resolved = await resolveResponse(line, filename, content_tsconfig);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content_tsconfig);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 5:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = "tests";
+            resolved = await resolveResponse(line, filename, '');
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, '', true);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 6:
