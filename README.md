@@ -9,7 +9,7 @@
 - deno @v0.35.0
 
 ### Usage
-**Note**: Be advised that this package is not yet published to the deno 3rd party repository as it still needs some refactoring and testing befor release.
+**Note**: Be advised that this package is not yet published to the deno 3rd party repository as it still needs some refactoring and testing before release.
 
 However, you can clone this repository and run the make command `make init arg=rw`. Make sure you have deno installed.
 
