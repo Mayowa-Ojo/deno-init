@@ -1,6 +1,6 @@
 // >cli tool for bootstrapping deno project<
 import { parse, exists, readLines, writeFileStr, ensureDir, c } from "./deps.ts";
-import { content_makefile, content_importmap, content_tsconfig } from "./utils/file_content.ts";
+import * as content from "./utils/file_content.ts";
 
 // globals 
 const { args, exit } = Deno;
@@ -18,6 +18,7 @@ mapQuestionsToIndex.set('7', 'VII');
 mapQuestionsToIndex.set('8', 'VIII');
 mapQuestionsToIndex.set('9', 'IX');
 mapQuestionsToIndex.set('10', 'X');
+mapQuestionsToIndex.set('11', 'XI');
 
 interface Options {
    boolean?: string[];
@@ -168,6 +169,12 @@ async function forceValidInput(condition: Function, errMsg: string, canProceed: 
    return [true, validInput];
 }
 
+function willTerminate(currIndex: number): void {
+   if(currIndex == mapQuestionsToIndex.size) {
+      exit(0);
+   }
+}
+
 async function read(): Promise<void> {
    // const holdQuestion: string[] = [];
    let indexCount = 1;
@@ -226,13 +233,13 @@ async function read(): Promise<void> {
          case 2:
             filename = "Makefile";
 
-            resolved = await resolveResponse(line, filename, content_makefile);
+            resolved = await resolveResponse(line, filename, content.content_makefile);
 
             if(!resolved) {
                const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, '');
+                  await resolveResponse(input, filename, content.content_makefile);
                   indexCount++
                   resolved = false;
                   ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
@@ -247,15 +254,15 @@ async function read(): Promise<void> {
 
          case 3:
 
-            filename = "import_maps.json";
+            filename = "import_map.json";
 
-            resolved = await resolveResponse(line, filename, content_importmap);
+            resolved = await resolveResponse(line, filename, content.content_importmap);
 
             if(!resolved) {
                const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content_importmap);
+                  await resolveResponse(input, filename, content.content_importmap);
                   indexCount++
                   resolved = false;
                   ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
@@ -272,13 +279,13 @@ async function read(): Promise<void> {
 
             filename = "tsconfig.json";
 
-            resolved = await resolveResponse(line, filename, content_tsconfig);
+            resolved = await resolveResponse(line, filename, content.content_tsconfig);
 
             if(!resolved) {
                const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
 
                if(validated) {
-                  await resolveResponse(input, filename, content_tsconfig);
+                  await resolveResponse(input, filename, content.content_tsconfig);
                   indexCount++
                   resolved = false;
                   ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
@@ -314,57 +321,121 @@ async function read(): Promise<void> {
             break;
 
          case 6:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = ".gitignore";
+
+            resolved = await resolveResponse(line, filename, content.content_gitignore);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content.content_gitignore);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 7:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = ".env";
+
+            resolved = await resolveResponse(line, filename, content.content_dotenv);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content.content_dotenv);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 8:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
+
+            filename = "README.md";
+
+            resolved = await resolveResponse(line, filename, content.content_readme);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content.content_readme);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
             break;
 
          case 9:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;               
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
 
-               if(questions[mapQuestionsToIndex.get((indexCount+1).toString())] == undefined) {
-                  exit(0);
+            filename = "LICENCE";
+
+            resolved = await resolveResponse(line, filename, content.content_licence);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content.content_licence);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
                }
-            } else {
-               log('invalid input');
-            }case 10:
-            if(line.toLowerCase() == 'yes' || line.toLowerCase() == 'y') {
-               log('file created');
-               indexCount++;
-               if(questions[mapQuestionsToIndex.get(indexCount.toString())] == undefined) {
-                  exit(0);
-               }
-               ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
-            } else {
-               log('invalid input');
             }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+            break;
+
+         case 10:
+
+            filename = "types.d.ts";
+
+            resolved = await resolveResponse(line, filename, content.content_types);
+
+            if(!resolved) {
+               const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
+
+               if(validated) {
+                  await resolveResponse(input, filename, content.content_types);
+                  indexCount++
+                  resolved = false;
+                  ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+                  break;
+               }
+            }
+
+            indexCount++
+            resolved = false;
+            ask(questions[mapQuestionsToIndex.get(indexCount.toString())]);
+
+            // check termination condition
+            willTerminate(indexCount);
             break;
 
          default:
