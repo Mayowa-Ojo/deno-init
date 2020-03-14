@@ -58,7 +58,7 @@ async function prompt (text: string, callback: Function): Promise<void> {
 async function generateFile(name: string, content: string, overwrite?: boolean, isfolder?: boolean): Promise<boolean> {
    // check if file exixts
    
-   if(overwrite && !isfolder) {
+   if(overwrite) {
       try {
          await Deno.remove(`./${name}`);
       } catch (err) {
@@ -66,7 +66,7 @@ async function generateFile(name: string, content: string, overwrite?: boolean, 
       }
    }
 
-   const fileExists: boolean = await exists(`./${name}`);
+   const fileExists: boolean = isfolder ? false : await exists(`./${name}`);
 
    if(fileExists) {
       return fileExists;
@@ -74,8 +74,9 @@ async function generateFile(name: string, content: string, overwrite?: boolean, 
 
    try {
       if(isfolder) {
+         console.log('creating foler...')
          await ensureDir(`./${name}`);
-         return true;
+         return false;
       }
 
       await writeFileStr(name, content);
@@ -113,7 +114,7 @@ function throwError(message: string, willExit: boolean, errType?: string): void 
 async function handleFileExists(exists: boolean, filename: string, isfolder?: boolean): Promise<void> {
 
    if(exists) {
-      throwError('file already exixts, do you want to overwrite?', false, 'WARNING');
+      throwError('file already exists, do you want to overwrite?', false, 'WARNING');
       for await(const subLine of readLines(Deno.stdin)) {
          if(subLine.toLowerCase() == 'yes' || subLine.toLowerCase() == 'y') {
             generateFile(filename, '', true, isfolder ? true : false);
@@ -133,7 +134,7 @@ async function handleFileExists(exists: boolean, filename: string, isfolder?: bo
 async function resolveResponse(res: string, filename: string, content: string, isfolder?: boolean): Promise<boolean> {
    if(res.toLowerCase() == 'yes' || res.toLowerCase() == 'y') {
 
-      const exists = await generateFile(filename, content);
+      const exists = await generateFile(filename, content, false, isfolder ? true : false);
       await handleFileExists(exists, filename, isfolder ? true : false);
 
       return true;
@@ -293,7 +294,7 @@ async function read(): Promise<void> {
          case 5:
 
             filename = "tests";
-            resolved = await resolveResponse(line, filename, '');
+            resolved = await resolveResponse(line, filename, '', true);
 
             if(!resolved) {
                const [validated, input] = await forceValidInput(isValidInput, 'invalid input', canProceed);
