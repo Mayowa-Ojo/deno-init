@@ -44,3 +44,26 @@ export const content_tsconfig = `
    ]   
  }
 `;
+
+export const content_gitignore = `
+dist/**/*
+
+.env
+.vscode/
+`;
+
+export const content_dotenv = `
+
+`;
+
+export const content_readme = `
+
+`;
+
+export const content_licence = `
+
+`;
+
+export const content_types = `
+
+`;
