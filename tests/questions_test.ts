@@ -1,5 +1,4 @@
-// import { assertEquals } from "./deps.ts";
-import { assertEquals } from "https://deno.land/std@v0.35.0/testing/asserts.ts";
+import { assertEquals } from "../deps.ts";
 import { mapQuestionsToIndex } from "../utils/questions.ts";
 
 Deno.test({
@@ -22,4 +21,4 @@ Deno.test({
    }
 });
 
-await Deno.runTests();
+// await Deno.runTests();

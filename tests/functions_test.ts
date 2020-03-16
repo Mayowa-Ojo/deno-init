@@ -1,5 +1,5 @@
-import { assertEquals } from "https://deno.land/std@v0.35.0/testing/asserts.ts";
-import { prompt } from "../utils/functions"
+import { assertEquals } from "../deps.ts";
+import { prompt } from "../utils/functions.ts"
 
 Deno.test({
    name: "should execute callback function",
@@ -11,4 +11,4 @@ Deno.test({
    }
 })
 
-await Deno.runTests();
+// await Deno.runTests();

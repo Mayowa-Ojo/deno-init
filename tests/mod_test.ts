@@ -1,5 +1,4 @@
-// import { assertEquals } from "./deps.ts";
-import { assertEquals } from "https://deno.land/std@v0.35.0/testing/asserts.ts";
+import { assertEquals } from "../deps.ts";
 
 Deno.test({
    name: "passes tests",
@@ -10,4 +9,4 @@ Deno.test({
    }
 });
 
-await Deno.runTests();
+// await Deno.runTests();
